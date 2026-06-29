@@ -1,6 +1,6 @@
 {
   "name": "Academic Results Dashboard",
-  "description": "An interactive dashboard for searching, filtering, and analyzing student academic results, transcripts, and class statistics.",
+  "description": "Portail académique officiel du Lycée de St. Jude pour le suivi, l'analyse des résultats scolaires et les bulletins du Probatoire 2026.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

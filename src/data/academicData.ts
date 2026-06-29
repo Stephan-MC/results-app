@@ -64,7 +64,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU102",
     rollNumber: "2026-11C-02",
-    name: "Sophia Rodriguez",
+    name: "Ngo Bilong Sophia",
     classSection: "Première C",
     semester: "Term 1",
     attendance: 98.5,
@@ -88,7 +88,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU103",
     rollNumber: "2026-11C-03",
-    name: "Ethan Chen",
+    name: "Kamga Ethan Pascal",
     classSection: "Première C",
     semester: "Term 1",
     attendance: 92.0,
@@ -112,7 +112,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU104",
     rollNumber: "2026-11C-04",
-    name: "Mia Thompson",
+    name: "Amougou Mia Vanessa",
     classSection: "Première C",
     semester: "Term 1",
     attendance: 94.1,
@@ -136,7 +136,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU105",
     rollNumber: "2026-11C-05",
-    name: "Liam O'Connor",
+    name: "Mvondo Liam Arthur",
     classSection: "Première C",
     semester: "Term 1",
     attendance: 88.0,
@@ -161,7 +161,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU201",
     rollNumber: "2026-11D-01",
-    name: "Oliver Vance",
+    name: "Abega Oliver Vance",
     classSection: "Première D",
     semester: "Term 1",
     attendance: 97.4,
@@ -185,7 +185,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU202",
     rollNumber: "2026-11D-02",
-    name: "Isabella Martinez",
+    name: "Ngoa Isabella Martinez",
     classSection: "Première D",
     semester: "Term 1",
     attendance: 95.0,
@@ -209,7 +209,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU203",
     rollNumber: "2026-11D-03",
-    name: "Lucas Bennett",
+    name: "Mbida Lucas Bennett",
     classSection: "Première D",
     semester: "Term 1",
     attendance: 91.5,
@@ -233,7 +233,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
   {
     id: "STU204",
     rollNumber: "2026-11D-04",
-    name: "Ava Fitzgerald",
+    name: "Bengono Ava Fitzgerald",
     classSection: "Première D",
     semester: "Term 1",
     attendance: 99.1,
