@@ -1,0 +1,6 @@
+{
+  "name": "Academic Results Dashboard",
+  "description": "An interactive dashboard for searching, filtering, and analyzing student academic results, transcripts, and class statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
