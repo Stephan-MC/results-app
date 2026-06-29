@@ -32,13 +32,32 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-const SUBJECT_COEFFS: { [name: string]: number } = {
-  "Mathématiques": 4,
-  "Physique": 3,
-  "Chimie": 2,
-  "Littérature Anglaise": 3,
-  "Histoire-Géographie": 2,
-  "Informatique": 2
+const getSubjectCoefficient = (subjectName: string, classSection: string): number => {
+  const isSerieD = classSection.includes("D") || classSection.includes("11-B") || classSection.includes("Grade 11-B");
+  switch (subjectName) {
+    case "Mathématiques":
+      return isSerieD ? 4 : 5;
+    case "Physique":
+      return isSerieD ? 2 : 3;
+    case "Chimie":
+      return 2;
+    case "Sciences de la Vie et de la Terre (SVT)":
+    case "SVT":
+      return isSerieD ? 4 : 2;
+    case "Français":
+      return 3;
+    case "Anglais":
+      return 2;
+    case "Histoire-Géographie":
+      return 2;
+    case "Informatique":
+      return 2;
+    case "Éducation Civique et Morale (ECM)":
+    case "ECM":
+      return 1;
+    default:
+      return 2;
+  }
 };
 
 export default function App() {
@@ -69,7 +88,7 @@ export default function App() {
       let weightedSum = 0;
       let coeffSum = 0;
       sanitizedResults.forEach(res => {
-        const coeff = SUBJECT_COEFFS[res.name] || 2;
+        const coeff = getSubjectCoefficient(res.name, student.classSection);
         weightedSum += res.gpa * coeff;
         coeffSum += coeff;
       });
@@ -149,7 +168,7 @@ export default function App() {
 
   // --- Class Performance Stats ---
   // Determine which class stats to display based on either the current filter, or the selected student's class
-  const statsClass = classFilter !== 'All' ? classFilter : (activeStudent?.classSection || 'Grade 10-A');
+  const statsClass = classFilter !== 'All' ? classFilter : (activeStudent?.classSection || 'Première C');
   const classStats = useMemo(() => {
     return calculateClassStats(rankedStudents, statsClass, 'Term 1');
   }, [rankedStudents, statsClass]);
@@ -253,7 +272,7 @@ export default function App() {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Cohorte de Classe</label>
                 <div className="flex flex-wrap gap-1.5" id="class-filter-container">
-                  {['All', 'Grade 10-A', 'Grade 11-B'].map((cohort) => (
+                  {['All', 'Première C', 'Première D'].map((cohort) => (
                     <button
                       key={cohort}
                       onClick={() => setClassFilter(cohort)}
@@ -483,9 +502,9 @@ export default function App() {
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Série / Spécialité</span>
                         <span className="text-sm font-bold text-slate-800">
-                          {activeStudent.classSection.includes("10-A") 
-                            ? "Série C (Maths/Sciences)" 
-                            : "Série TI (Informatique)"}
+                          {activeStudent.classSection.includes("C") 
+                            ? "Série C (Mathématiques & Physiques)" 
+                            : "Série D (Sciences de la Vie & de la Terre)"}
                         </span>
                       </div>
                       <div>
@@ -566,7 +585,7 @@ export default function App() {
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-xs print:divide-y print:divide-black">
                             {activeStudent.results.map((res) => {
-                              const coeff = SUBJECT_COEFFS[res.name] || 2;
+                              const coeff = getSubjectCoefficient(res.name, activeStudent.classSection);
                               const weighted = res.gpa * coeff;
                               return (
                                 <tr key={res.code} className="hover:bg-slate-50/40 font-medium">
@@ -614,13 +633,13 @@ export default function App() {
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total des Coefficients</p>
                           <p className="text-xl font-bold text-slate-800 font-mono">
-                            {activeStudent.results.reduce((acc, res) => acc + (SUBJECT_COEFFS[res.name] || 2), 0)}
+                            {activeStudent.results.reduce((acc, res) => acc + getSubjectCoefficient(res.name, activeStudent.classSection), 0)}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Points Totaux</p>
                           <p className="text-xl font-bold text-slate-800 font-mono">
-                            {activeStudent.results.reduce((acc, res) => acc + (res.gpa * (SUBJECT_COEFFS[res.name] || 2)), 0).toFixed(2)}
+                            {activeStudent.results.reduce((acc, res) => acc + (res.gpa * getSubjectCoefficient(res.name, activeStudent.classSection)), 0).toFixed(2)}
                           </p>
                         </div>
                         <div className="text-right">

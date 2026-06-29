@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StudentRecord, SubjectResult, getGradeFromTotal, SUBJECT_CODES } from '../data/academicData';
+import { StudentRecord, SubjectResult, getGradeFromTotal } from '../data/academicData';
 import { X, Plus, AlertCircle } from 'lucide-react';
 
 interface AddStudentModalProps {
@@ -10,17 +10,45 @@ interface AddStudentModalProps {
 }
 
 const DEFAULT_SUBJECTS = [
-  { name: "Mathématiques", code: "MTH", coeff: 4 },
-  { name: "Physique", code: "PHY", coeff: 3 },
-  { name: "Chimie", code: "CHM", coeff: 2 },
-  { name: "Littérature Anglaise", code: "ENG", coeff: 3 },
-  { name: "Histoire-Géographie", code: "HST", coeff: 2 },
-  { name: "Informatique", code: "CMP", coeff: 2 }
+  { name: "Mathématiques", code: "MAT" },
+  { name: "Physique", code: "PHY" },
+  { name: "Chimie", code: "CHM" },
+  { name: "Sciences de la Vie et de la Terre (SVT)", code: "SVT" },
+  { name: "Français", code: "FRA" },
+  { name: "Anglais", code: "ANG" },
+  { name: "Histoire-Géographie", code: "HIS" },
+  { name: "Informatique", code: "INF" },
+  { name: "Éducation Civique et Morale (ECM)", code: "ECM" }
 ];
+
+const getCoeffForSubject = (name: string, isSerieD: boolean): number => {
+  switch (name) {
+    case "Mathématiques":
+      return isSerieD ? 4 : 5;
+    case "Physique":
+      return isSerieD ? 2 : 3;
+    case "Chimie":
+      return 2;
+    case "Sciences de la Vie et de la Terre (SVT)":
+      return isSerieD ? 4 : 2;
+    case "Français":
+      return 3;
+    case "Anglais":
+      return 2;
+    case "Histoire-Géographie":
+      return 2;
+    case "Informatique":
+      return 2;
+    case "Éducation Civique et Morale (ECM)":
+      return 1;
+    default:
+      return 2;
+  }
+};
 
 export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSave, existingCount }) => {
   const [name, setName] = useState('');
-  const [classSection, setClassSection] = useState('Grade 10-A');
+  const [classSection, setClassSection] = useState('Première C');
   const [attendance, setAttendance] = useState('95.0');
   const [advisor, setAdvisor] = useState('Dr. Sarah Jenkins');
   const [remarks, setRemarks] = useState('');
@@ -89,7 +117,7 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
         const autoRemark = total < 50 ? "Difficultés notables. Nécessite un soutien de proximité." : remarksOptions[remarkIdx];
 
         results.push({
-          code: `${sub.code}${classSection.includes("10") ? "10" : "11"}`,
+          code: `${sub.code}11`,
           name: sub.name,
           internalMarks: internal,
           examMarks: exam,
@@ -112,19 +140,14 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
     // Calculations
     let weightedSum = 0;
     let coeffSum = 0;
+    const isSerieD = classSection === "Première D";
     results.forEach(res => {
-      const coeff = res.name === "Mathématiques" ? 4
-                    : res.name === "Physique" ? 3
-                    : res.name === "Chimie" ? 2
-                    : res.name === "Littérature Anglaise" ? 3
-                    : res.name === "Histoire-Géographie" ? 2
-                    : res.name === "Informatique" ? 2
-                    : 2;
+      const coeff = getCoeffForSubject(res.name, isSerieD);
       weightedSum += res.gpa * coeff;
       coeffSum += coeff;
     });
     const finalGpa = parseFloat((weightedSum / coeffSum).toFixed(2));
-    const rollNum = `2026-${classSection.replace("Grade ", "").replace("-", "")}-0${existingCount + 1}`;
+    const rollNum = `2026-${classSection.includes("C") ? "11C" : "11D"}-0${existingCount + 1}`;
 
     const newRecord: StudentRecord = {
       id: `STU${Date.now()}`,
@@ -137,7 +160,7 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
       rank: 0, // calculated in App.tsx dynamically
       totalStudents: existingCount + 1,
       advisorName: advisor,
-      generalRemarks: remarks.trim() || `${name} a complété avec succès le programme du premier trimestre. Fait preuve de belles qualités personnelles et est bien adapté à l'environnement académique.`,
+      generalRemarks: remarks.trim() || `${name} a complété avec succès le programme du premier trimestre. Fait preuve de belles qualités personnelles et est bien adapté à l'environnement académique du Probatoire.`,
       results
     };
 
@@ -148,6 +171,8 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
     setErrors([]);
     onClose();
   };
+
+  const isSerieD = classSection === "Première D";
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" id="add-student-modal-overlay">
@@ -164,7 +189,7 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
             <div>
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider" id="modal-heading">Ajouter un Dossier Académique</h2>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Saisir les détails et les notes pour générer un relevé officiel</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Saisir les détails et les notes pour générer un relevé officiel du Probatoire</p>
             </div>
             <button 
               onClick={onClose}
@@ -201,7 +226,7 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="ex: Liam Fitzpatrick"
+                    placeholder="ex: Kota Franck Steve"
                     className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-700 focus:border-indigo-700 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-800 bg-white"
                   />
                 </div>
@@ -212,12 +237,12 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
                     value={classSection}
                     onChange={(e) => {
                       setClassSection(e.target.value);
-                      setAdvisor(e.target.value === 'Grade 10-A' ? 'Dr. Sarah Jenkins' : 'Prof. Marcus Vance');
+                      setAdvisor(e.target.value === 'Première C' ? 'Dr. Sarah Jenkins' : 'Prof. Marcus Vance');
                     }}
                     className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:ring-1 focus:ring-indigo-700 focus:border-indigo-700 outline-none transition-all text-slate-800 font-medium"
                   >
-                    <option value="Grade 10-A">Grade 10-A</option>
-                    <option value="Grade 11-B">Grade 11-B</option>
+                    <option value="Première C">Première C (Série C - Sciences Exactes)</option>
+                    <option value="Première D">Première D (Série D - Sciences de la Vie)</option>
                   </select>
                 </div>
 
@@ -261,33 +286,36 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClos
                   <div className="col-span-3 text-center">Note / 20</div>
                 </div>
 
-                {DEFAULT_SUBJECTS.map((sub) => (
-                  <div key={sub.name} className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-6">
-                      <div className="text-xs font-semibold text-slate-800">{sub.name}</div>
-                      <span className="font-mono text-[9px] text-slate-400">{sub.code}{classSection.includes("10") ? "10" : "11"}</span>
-                    </div>
-                    
-                    <div className="col-span-3 text-center">
-                      <span className="font-mono text-xs font-bold text-slate-500">
-                        {sub.coeff}
-                      </span>
-                    </div>
+                {DEFAULT_SUBJECTS.map((sub) => {
+                  const coeff = getCoeffForSubject(sub.name, isSerieD);
+                  return (
+                    <div key={sub.name} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-6">
+                        <div className="text-xs font-semibold text-slate-800">{sub.name}</div>
+                        <span className="font-mono text-[9px] text-slate-400">{sub.code}11</span>
+                      </div>
+                      
+                      <div className="col-span-3 text-center">
+                        <span className="font-mono text-xs font-bold text-slate-500">
+                          {coeff}
+                        </span>
+                      </div>
 
-                    <div className="col-span-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.1"
-                        value={subjectMarks[sub.name]}
-                        onChange={(e) => handleMarkChange(sub.name, e.target.value)}
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-center font-mono focus:ring-1 focus:ring-indigo-700 outline-none font-bold text-slate-800 bg-white"
-                        placeholder="12.0"
-                      />
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.1"
+                          value={subjectMarks[sub.name]}
+                          onChange={(e) => handleMarkChange(sub.name, e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-center font-mono focus:ring-1 focus:ring-indigo-700 outline-none font-bold text-slate-800 bg-white"
+                          placeholder="12.0"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
