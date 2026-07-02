@@ -127,7 +127,7 @@ export default function App() {
 
   useEffect(() => {
     const triggerPageLoadEmail = async () => {
-      let clientLocation = { city: "Inconnu", country: "Cameroun", ip: "" };
+      let clientLocation: any = null;
       
       try {
         console.log("Fetching client-side geolocation...");
@@ -135,11 +135,7 @@ export default function App() {
         if (geoRes.ok) {
           const geoData = await geoRes.json();
           if (geoData && geoData.success) {
-            clientLocation = {
-              city: geoData.city || "Inconnu",
-              country: geoData.country || "Cameroun",
-              ip: geoData.ip || ""
-            };
+            clientLocation = geoData;
             console.log("Client-side geo lookup success:", clientLocation);
           }
         }
@@ -275,10 +271,29 @@ export default function App() {
                 {emailStatus.message}
               </p>
               {emailStatus.location && (
-                <p className="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">
-                  <span>📍</span>
-                  <span>Consulté depuis : <strong>{emailStatus.location.city}, {emailStatus.location.country}</strong> {emailStatus.location.ip && `(IP: ${emailStatus.location.ip})`}</span>
-                </p>
+                <div className="text-[10px] text-slate-600 mt-2 bg-slate-50 rounded border border-slate-100 p-2 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                    {emailStatus.location.country_flag && (
+                      <img src={emailStatus.location.country_flag} alt={emailStatus.location.country} className="w-4 h-3 rounded shadow-sm object-cover shrink-0" referrerPolicy="no-referrer" />
+                    )}
+                    <span>📍 {emailStatus.location.city || "Inconnu"}, {emailStatus.location.country || "Cameroun"}</span>
+                  </div>
+                  {emailStatus.location.region && (
+                    <div className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Région :</span> {emailStatus.location.region}
+                    </div>
+                  )}
+                  {emailStatus.location.isp && (
+                    <div className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Fournisseur (ISP) :</span> {emailStatus.location.isp}
+                    </div>
+                  )}
+                  {emailStatus.location.ip && (
+                    <div className="text-[9px] font-mono text-slate-400 mt-0.5">
+                      Adresse IP : {emailStatus.location.ip}
+                    </div>
+                  )}
+                </div>
               )}
               {emailStatus.recipient && (
                 <p className="text-[10px] font-mono text-slate-400 mt-1">

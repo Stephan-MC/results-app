@@ -45,11 +45,7 @@ async function startServer() {
         if (geoRes.ok) {
           const geoData = await geoRes.json() as any;
           if (geoData && geoData.success) {
-            location = {
-              city: geoData.city || "Inconnu",
-              country: geoData.country || "Cameroun",
-              ip: ip
-            };
+            location = geoData;
             console.log("Server-side geoip lookup success:", location);
           }
         }
@@ -59,9 +55,16 @@ async function startServer() {
     }
 
     const finalLocation = {
-      city: location?.city && location.city !== "Inconnu" ? location.city : "Yaoundé",
-      country: location?.country && location.country !== "Inconnu" ? location.country : "Cameroun",
-      ip: location?.ip || ip || "127.0.0.1"
+      city: location?.city || "Inconnu",
+      country: location?.country || "Cameroun",
+      country_code: location?.country_code || "",
+      country_flag: location?.country_flag || "",
+      region: location?.region || "",
+      isp: location?.isp || "Inconnu",
+      org: location?.org || "",
+      ip: location?.ip || ip || "127.0.0.1",
+      timezone: typeof location?.timezone === "object" ? (location?.timezone?.id || location?.timezone?.gmt || "") : (location?.timezone || ""),
+      type: location?.type || "IPv4"
     };
 
     // Check if configuration is present
@@ -108,11 +111,48 @@ async function startServer() {
             <p style="font-size: 14px; line-height: 1.6;">Nous vous informons que le portail académique officiel du <strong>Lycée de St. Jude</strong> vient d'être consulté pour l'accès aux résultats officiels du <strong>Probatoire 2026</strong> de l'élève ci-dessous :</p>
           </div>
 
-          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px; margin-bottom: 20px; font-size: 12px;">
-            <span style="font-size: 10px; font-weight: bold; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">📍 Localisation de la Consultation</span>
-            <p style="margin: 0; font-size: 13px; line-height: 1.4; color: #14532d;">
-              Consulté depuis : <strong>${finalLocation.city}, ${finalLocation.country}</strong> ${finalLocation.ip ? `<span style="color: #166534; font-size: 11px;">(IP: ${finalLocation.ip})</span>` : ''}
-            </p>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="margin-bottom: 12px; font-weight: bold; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px;">
+              📍 Informations de Connexion & Localisation (ipwho.is)
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #334155;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b; width: 40%;">Pays :</td>
+                <td style="padding: 6px 0; color: #0f172a; font-weight: bold;">
+                  ${finalLocation.country_flag ? `<img src="${finalLocation.country_flag}" alt="${finalLocation.country}" style="width: 20px; height: 14px; border-radius: 2px; vertical-align: middle; margin-right: 6px; display: inline-block;" />` : ''}
+                  <span style="vertical-align: middle;">${finalLocation.country} (${finalLocation.country_code || 'N/A'})</span>
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Région / État :</td>
+                <td style="padding: 6px 0; color: #0f172a;">${finalLocation.region || 'Inconnu'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Ville :</td>
+                <td style="padding: 6px 0; color: #0f172a; font-weight: bold;">${finalLocation.city}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Fournisseur d'Accès (ISP) :</td>
+                <td style="padding: 6px 0; color: #0f172a;">${finalLocation.isp}</td>
+              </tr>
+              ${finalLocation.org && finalLocation.org !== finalLocation.isp ? `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Organisation :</td>
+                <td style="padding: 6px 0; color: #0f172a;">${finalLocation.org}</td>
+              </tr>
+              ` : ''}
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Fuseau Horaire :</td>
+                <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-size: 12px;">${finalLocation.timezone || 'Inconnu'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Adresse IP :</td>
+                <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: bold; font-size: 12px;">
+                  ${finalLocation.ip} <span style="font-size: 10px; color: #64748b; font-weight: normal;">(${finalLocation.type})</span>
+                </td>
+              </tr>
+            </table>
           </div>
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 25px;">
