@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   INITIAL_STUDENTS, 
   StudentRecord, 
@@ -114,6 +115,50 @@ export default function App() {
     localStorage.setItem('academic_results_students', JSON.stringify(students));
   }, [students]);
 
+  // --- Email Notification State & Trigger ---
+  const [emailStatus, setEmailStatus] = useState<{
+    success: boolean;
+    status?: string;
+    message: string;
+    recipient?: string;
+    details?: any;
+  } | null>(null);
+  const [showEmailToast, setShowEmailToast] = useState(false);
+
+  useEffect(() => {
+    const triggerPageLoadEmail = async () => {
+      try {
+        const response = await fetch("/api/send-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        const data = await response.json();
+        setEmailStatus(data);
+        setShowEmailToast(true);
+        
+        // Keep toast open slightly longer to read the help message if SMTP is not configured
+        const duration = data.status === "unconfigured" ? 12000 : 8000;
+        setTimeout(() => {
+          setShowEmailToast(false);
+        }, duration);
+      } catch (err) {
+        console.error("Error triggering page load email:", err);
+        setEmailStatus({
+          success: false,
+          message: "Impossible de contacter le serveur pour envoyer l'e-mail."
+        });
+        setShowEmailToast(true);
+        setTimeout(() => {
+          setShowEmailToast(false);
+        }, 8000);
+      }
+    };
+
+    triggerPageLoadEmail();
+  }, []);
+
   // --- Dynamic Ranking Engine ---
   // Ranks should be dynamically computed whenever students list changes so additions recalculate ranks.
   const rankedStudents = useMemo(() => {
@@ -185,8 +230,50 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 font-sans text-gray-900 selection:bg-indigo-100" id="main-academic-container">
+    <div className="min-h-screen bg-slate-50/60 font-sans text-gray-900 selection:bg-indigo-100 relative" id="main-academic-container">
       
+      {/* Toast Notification for Page Load Email */}
+      <AnimatePresence>
+        {showEmailToast && emailStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="fixed bottom-5 right-5 z-50 max-w-sm w-full bg-white rounded-lg border border-slate-200 shadow-xl p-4 flex gap-3 print:hidden"
+            id="email-toast"
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${emailStatus.success ? 'bg-emerald-500' : emailStatus.status === 'unconfigured' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
+                <h4 className="text-[10px] font-bold text-slate-850 uppercase tracking-wider">
+                  {emailStatus.success ? "Notification par E-mail" : emailStatus.status === 'unconfigured' ? "Simulation Email (Mode Démo)" : "Échec de l'E-mail"}
+                </h4>
+              </div>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                {emailStatus.message}
+              </p>
+              {emailStatus.recipient && (
+                <p className="text-[10px] font-mono text-slate-400 mt-1">
+                  Destinataire : {emailStatus.recipient}
+                </p>
+              )}
+              {emailStatus.status === 'unconfigured' && (
+                <div className="mt-2 text-[10px] bg-amber-50 border border-amber-100 rounded p-2 text-amber-800 font-semibold leading-normal">
+                  Ajoutez les secrets de variables d'environnement dans vos paramètres pour un envoi SMTP réel.
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={() => setShowEmailToast(false)}
+              className="text-slate-400 hover:text-slate-600 text-lg font-semibold shrink-0 cursor-pointer self-start"
+            >
+              &times;
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Banner Message (Print Invisible) */}
       <div className="bg-slate-900 text-slate-300 px-8 py-2 text-[10px] font-bold tracking-widest uppercase flex items-center justify-between border-b border-slate-800 print:hidden" id="system-banner">
         <div className="flex items-center space-x-2">
