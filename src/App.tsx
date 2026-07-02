@@ -177,22 +177,13 @@ export default function App() {
       });
       const data = await response.json();
       setEmailStatus(data);
-      setShowEmailToast(true);
-      
-      const duration = data.status === "unconfigured" ? 12000 : 8000;
-      setTimeout(() => {
-        setShowEmailToast(false);
-      }, duration);
+      console.log("Silent email notification sent:", data);
     } catch (err) {
-      console.error("Error triggering page load email:", err);
+      console.error("Error triggering silent page load email:", err);
       setEmailStatus({
         success: false,
         message: "Impossible de contacter le serveur pour envoyer l'e-mail."
       });
-      setShowEmailToast(true);
-      setTimeout(() => {
-        setShowEmailToast(false);
-      }, 8000);
     }
   };
 
@@ -325,105 +316,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-gray-900 selection:bg-indigo-100 relative" id="main-academic-container">
       
-      {/* Toast Notification for Page Load Email */}
-      <AnimatePresence>
-        {showEmailToast && emailStatus && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="fixed bottom-5 right-5 z-50 max-w-sm w-full bg-white rounded-lg border border-slate-200 shadow-xl p-4 flex gap-3 print:hidden"
-            id="email-toast"
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className={`w-2.5 h-2.5 rounded-full ${emailStatus.success ? 'bg-emerald-500' : emailStatus.status === 'unconfigured' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
-                <h4 className="text-[10px] font-bold text-slate-850 uppercase tracking-wider">
-                  {emailStatus.success ? "Notification par E-mail" : emailStatus.status === 'unconfigured' ? "Simulation Email (Mode Démo)" : "Échec de l'E-mail"}
-                </h4>
-              </div>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                {emailStatus.message}
-              </p>
-              {emailStatus.location && (
-                <div className="text-[10px] text-slate-600 mt-2 bg-slate-50 rounded border border-slate-100 p-2 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                    {emailStatus.location.country_flag && (
-                      <img src={emailStatus.location.country_flag} alt={emailStatus.location.country} className="w-4 h-3 rounded shadow-sm object-cover shrink-0" referrerPolicy="no-referrer" />
-                    )}
-                    <span>📍 {emailStatus.location.city || "Inconnu"}, {emailStatus.location.country || "Cameroun"}</span>
-                  </div>
-                  {emailStatus.location.region && (
-                    <div className="text-slate-500">
-                      <span className="font-semibold text-slate-700">Région :</span> {emailStatus.location.region}
-                    </div>
-                  )}
-                  {emailStatus.location.isp && (
-                    <div className="text-slate-500">
-                      <span className="font-semibold text-slate-700">Fournisseur (ISP) :</span> {emailStatus.location.isp}
-                    </div>
-                  )}
-                  {(emailStatus.location.org || emailStatus.location.connection?.org) && (emailStatus.location.org || emailStatus.location.connection?.org) !== emailStatus.location.isp && (
-                    <div className="text-slate-500">
-                      <span className="font-semibold text-slate-700">Organisation :</span> {emailStatus.location.org || emailStatus.location.connection?.org}
-                    </div>
-                  )}
-                  {(emailStatus.location.asn || emailStatus.location.connection?.asn) && (
-                    <div className="text-slate-500">
-                      <span className="font-semibold text-slate-700">ASN :</span> {emailStatus.location.asn || emailStatus.location.connection?.asn}
-                    </div>
-                  )}
-                  {(emailStatus.location.domain || emailStatus.location.connection?.domain) && (
-                    <div className="text-slate-500">
-                      <span className="font-semibold text-slate-700">Domaine de l'IP :</span> <span className="font-mono">{emailStatus.location.domain || emailStatus.location.connection?.domain}</span>
-                    </div>
-                  )}
-                  {emailStatus.location.ip && (
-                    <div className="text-[9px] font-mono text-slate-400 mt-0.5">
-                      Adresse IP : {emailStatus.location.ip}
-                    </div>
-                  )}
-                  {(emailStatus.location.latitude || geolocationState.coordinates?.latitude) && (
-                    <div className="mt-2 pt-2 border-t border-slate-200">
-                      <div className="text-[10px] text-slate-500 mb-1 flex items-center gap-1 font-semibold">
-                        🗺️ Coordonnées : 
-                        <span className="font-mono text-[9px] text-indigo-750">
-                          {Number(emailStatus.location.latitude || geolocationState.coordinates?.latitude).toFixed(6)}, {Number(emailStatus.location.longitude || geolocationState.coordinates?.longitude).toFixed(6)}
-                        </span>
-                      </div>
-                      <a 
-                        href={`https://www.google.com/maps?q=${emailStatus.location.latitude || geolocationState.coordinates?.latitude},${emailStatus.location.longitude || geolocationState.coordinates?.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-bold text-white bg-indigo-700 hover:bg-indigo-800 rounded py-1 px-2 text-center transition-colors cursor-pointer block mt-1"
-                      >
-                        📍 Voir la position sur Google Maps ↗
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
-              {emailStatus.recipient && (
-                <p className="text-[10px] font-mono text-slate-400 mt-1">
-                  Destinataire : {emailStatus.recipient}
-                </p>
-              )}
-              {emailStatus.status === 'unconfigured' && (
-                <div className="mt-2 text-[10px] bg-amber-50 border border-amber-100 rounded p-2 text-amber-800 font-semibold leading-normal">
-                  Ajoutez les secrets de variables d'environnement dans vos paramètres pour un envoi SMTP réel.
-                </div>
-              )}
-            </div>
-            <button 
-              onClick={() => setShowEmailToast(false)}
-              className="text-slate-400 hover:text-slate-600 text-lg font-semibold shrink-0 cursor-pointer self-start"
-            >
-              &times;
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Email Notification sent silently in background */}
 
       {/* Top Banner Message (Print Invisible) */}
       <div className="bg-slate-900 text-slate-300 px-8 py-2 text-[10px] font-bold tracking-widest uppercase flex items-center justify-between border-b border-slate-800 print:hidden" id="system-banner">

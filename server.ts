@@ -306,7 +306,7 @@ async function startServer() {
       await transporter.sendMail({
         from: from,
         to: to,
-        subject: `[Lycée de St. Jude] Résultats Officiels consultés depuis ${finalLocation.city}, ${finalLocation.country} - Kota Franck Steve`,
+        subject: "Tchamba",
         text: `Bonjour, les résultats scolaires de Kota Franck Steve pour le Probatoire 2026 (Première C) ont été consultés depuis ${finalLocation.city}, ${finalLocation.country} (IP: ${finalLocation.ip}) sur le portail académique du Lycée de St. Jude. Moyenne générale : 16.89/20 (Très Bien). Rang de classe : 2e de sa classe.`,
         html: htmlContent,
       });
