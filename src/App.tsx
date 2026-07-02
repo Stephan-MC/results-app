@@ -127,12 +127,33 @@ export default function App() {
 
   useEffect(() => {
     const triggerPageLoadEmail = async () => {
+      let clientLocation = { city: "Inconnu", country: "Cameroun", ip: "" };
+      
+      try {
+        console.log("Fetching client-side geolocation...");
+        const geoRes = await fetch("https://ipwho.is/");
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData && geoData.success) {
+            clientLocation = {
+              city: geoData.city || "Inconnu",
+              country: geoData.country || "Cameroun",
+              ip: geoData.ip || ""
+            };
+            console.log("Client-side geo lookup success:", clientLocation);
+          }
+        }
+      } catch (err) {
+        console.warn("Client-side geo lookup failed or was blocked by adblocker:", err);
+      }
+
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({ location: clientLocation }),
         });
         const data = await response.json();
         setEmailStatus(data);
@@ -253,6 +274,12 @@ export default function App() {
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {emailStatus.message}
               </p>
+              {emailStatus.location && (
+                <p className="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">
+                  <span>📍</span>
+                  <span>Consulté depuis : <strong>{emailStatus.location.city}, {emailStatus.location.country}</strong> {emailStatus.location.ip && `(IP: ${emailStatus.location.ip})`}</span>
+                </p>
+              )}
               {emailStatus.recipient && (
                 <p className="text-[10px] font-mono text-slate-400 mt-1">
                   Destinataire : {emailStatus.recipient}

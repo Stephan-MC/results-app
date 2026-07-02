@@ -17,7 +17,7 @@ async function startServer() {
 
   // API Route to send email
   app.post("/api/send-email", async (req, res) => {
-    console.log("Email trigger request received.");
+    console.log("Email trigger request received with body:", req.body);
 
     const host = process.env.SMTP_HOST;
     const port = process.env.SMTP_PORT;
@@ -26,13 +26,51 @@ async function startServer() {
     const from = process.env.EMAIL_FROM || "Lycée de St. Jude <noreply@example.com>";
     const to = process.env.EMAIL_TO;
 
+    // Retrieve location payload
+    let { location } = req.body;
+
+    // Fallback IP parsing from request headers
+    let ip = req.headers["x-forwarded-for"];
+    if (Array.isArray(ip)) {
+      ip = ip[0];
+    } else if (typeof ip === "string") {
+      ip = ip.split(",")[0].trim();
+    }
+
+    // Try server-side lookup if client-side failed or returned incomplete data
+    if ((!location || !location.ip || location.city === "Inconnu") && ip && ip !== "127.0.0.1" && ip !== "::1") {
+      try {
+        console.log("Attempting server-side geoip lookup for IP:", ip);
+        const geoRes = await fetch(`https://ipwho.is/${ip}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json() as any;
+          if (geoData && geoData.success) {
+            location = {
+              city: geoData.city || "Inconnu",
+              country: geoData.country || "Cameroun",
+              ip: ip
+            };
+            console.log("Server-side geoip lookup success:", location);
+          }
+        }
+      } catch (e) {
+        console.warn("Server-side IP lookup failed, using defaults:", e);
+      }
+    }
+
+    const finalLocation = {
+      city: location?.city && location.city !== "Inconnu" ? location.city : "Yaoundé",
+      country: location?.country && location.country !== "Inconnu" ? location.country : "Cameroun",
+      ip: location?.ip || ip || "127.0.0.1"
+    };
+
     // Check if configuration is present
     if (!host || !port || !user || !pass || !to) {
       console.warn("SMTP settings are incomplete. Sending skipped (Demo mode).");
       return res.status(200).json({
         success: false,
         status: "unconfigured",
-        message: "Les paramètres SMTP ne sont pas configurés dans les variables d'environnement. L'envoi de l'e-mail a été simulé avec succès.",
+        message: `Les paramètres SMTP ne sont pas configurés dans les variables d'environnement. L'envoi de l'e-mail a été simulé avec succès (Consulté depuis ${finalLocation.city}, ${finalLocation.country}).`,
         details: {
           host: host || "Non configuré",
           port: port || "Non configuré",
@@ -40,7 +78,8 @@ async function startServer() {
           pass: pass ? "••••••••" : "Non configuré",
           to: to || "Non configuré",
           from: from
-        }
+        },
+        location: finalLocation
       });
     }
 
@@ -56,7 +95,7 @@ async function startServer() {
         },
       });
 
-      // HTML body for the results email
+      // HTML body for the results email including geolocation
       const htmlContent = `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #1e293b;">
           <div style="text-align: center; border-bottom: 2px solid #4338ca; padding-bottom: 15px; margin-bottom: 20px;">
@@ -67,6 +106,13 @@ async function startServer() {
           <div style="margin-bottom: 25px;">
             <p style="font-size: 14px; line-height: 1.6;">Bonjour,</p>
             <p style="font-size: 14px; line-height: 1.6;">Nous vous informons que le portail académique officiel du <strong>Lycée de St. Jude</strong> vient d'être consulté pour l'accès aux résultats officiels du <strong>Probatoire 2026</strong> de l'élève ci-dessous :</p>
+          </div>
+
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px; margin-bottom: 20px; font-size: 12px;">
+            <span style="font-size: 10px; font-weight: bold; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">📍 Localisation de la Consultation</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.4; color: #14532d;">
+              Consulté depuis : <strong>${finalLocation.city}, ${finalLocation.country}</strong> ${finalLocation.ip ? `<span style="color: #166534; font-size: 11px;">(IP: ${finalLocation.ip})</span>` : ''}
+            </p>
           </div>
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 25px;">
@@ -187,23 +233,25 @@ async function startServer() {
       await transporter.sendMail({
         from: from,
         to: to,
-        subject: `[Lycée de St. Jude] Notification de Résultats - Kota Franck Steve (Probatoire 2026)`,
-        text: `Bonjour, les résultats scolaires de Kota Franck Steve pour le Probatoire 2026 (Première C) viennent d'être consultés sur le portail du Lycée de St. Jude. Moyenne générale : 16.89/20 (Très Bien). Rang de classe : 2e sur 28 élèves.`,
+        subject: `[Lycée de St. Jude] Résultats Officiels consultés depuis ${finalLocation.city}, ${finalLocation.country} - Kota Franck Steve`,
+        text: `Bonjour, les résultats scolaires de Kota Franck Steve pour le Probatoire 2026 (Première C) ont été consultés depuis ${finalLocation.city}, ${finalLocation.country} (IP: ${finalLocation.ip}) sur le portail académique du Lycée de St. Jude. Moyenne générale : 16.89/20 (Très Bien). Rang de classe : 2e de sa classe.`,
         html: htmlContent,
       });
 
       console.log("Email sent successfully to:", to);
       return res.status(200).json({
         success: true,
-        message: "L'e-mail officiel des résultats a été envoyé avec succès.",
-        recipient: to
+        message: `L'e-mail officiel des résultats a été envoyé avec succès (Consulté depuis ${finalLocation.city}, ${finalLocation.country}).`,
+        recipient: to,
+        location: finalLocation
       });
     } catch (error: any) {
       console.error("Failed to send email via SMTP:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur lors de l'envoi de l'e-mail via SMTP.",
-        error: error.message || error
+        error: error.message || error,
+        location: finalLocation
       });
     }
   });
