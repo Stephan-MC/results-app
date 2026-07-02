@@ -18,10 +18,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const from = process.env.EMAIL_FROM || "Lycée de St. Jude <noreply@example.com>";
-  const to = process.env.EMAIL_TO;
+  
+  // Parse multiple recipients separated by commas or semicolons
+  const toEnv = process.env.EMAIL_TO || "";
+  const recipientsList = toEnv.split(/[,;]/).map(email => email.trim()).filter(email => email.length > 0);
+  const to = recipientsList.join(", ");
 
   // Retrieve location payload
-  let { location } = req.body || {};
+  let { location, gps } = req.body || {};
 
   // Fallback IP parsing from request headers
   let ip = req.headers["x-forwarded-for"];
@@ -54,11 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     country_code: location?.country_code || "",
     country_flag: location?.country_flag || "",
     region: location?.region || "",
-    isp: location?.isp || "Inconnu",
-    org: location?.org || "",
+    isp: location?.connection?.isp || location?.isp || "Inconnu",
+    org: location?.connection?.org || location?.org || "",
+    asn: location?.connection?.asn || "",
+    domain: location?.connection?.domain || "",
     ip: location?.ip || ip || "127.0.0.1",
     timezone: typeof location?.timezone === "object" ? (location?.timezone?.id || location?.timezone?.gmt || "") : (location?.timezone || ""),
-    type: location?.type || "IPv4"
+    type: location?.type || "IPv4",
+    latitude: gps?.latitude || location?.latitude || null,
+    longitude: gps?.longitude || location?.longitude || null
   };
 
   // Check if configuration is present
@@ -126,12 +134,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Fournisseur d'Accès (ISP) :</td>
-              <td style="padding: 6px 0; color: #0f172a;">${finalLocation.isp}</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: bold;">${finalLocation.isp}</td>
             </tr>
             ${finalLocation.org && finalLocation.org !== finalLocation.isp ? `
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Organisation :</td>
               <td style="padding: 6px 0; color: #0f172a;">${finalLocation.org}</td>
+            </tr>
+            ` : ''}
+            ${finalLocation.asn ? `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Numéro d'ASN :</td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace;">${finalLocation.asn}</td>
+            </tr>
+            ` : ''}
+            ${finalLocation.domain ? `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Nom de domaine :</td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace;">${finalLocation.domain}</td>
             </tr>
             ` : ''}
             <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -144,6 +164,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ${finalLocation.ip} <span style="font-size: 10px; color: #64748b; font-weight: normal;">(${finalLocation.type})</span>
               </td>
             </tr>
+            ${finalLocation.latitude && finalLocation.longitude ? `
+            <tr style="border-top: 2px dashed #e2e8f0;">
+              <td style="padding: 8px 0; font-weight: bold; color: #4338ca; vertical-align: top;">📍 Coordonnées GPS :</td>
+              <td style="padding: 8px 0; color: #0f172a; font-weight: bold; font-family: monospace; font-size: 12px;">
+                ${finalLocation.latitude.toFixed(6)}, ${finalLocation.longitude.toFixed(6)}
+                <div style="margin-top: 4px;">
+                  <a href="https://www.google.com/maps?q=${finalLocation.latitude},${finalLocation.longitude}" target="_blank" style="color: #4338ca; text-decoration: underline; font-weight: bold; font-size: 12px; display: inline-block;">
+                    Voir la position sur Google Maps ↗
+                  </a>
+                </div>
+              </td>
+            </tr>
+            ` : ''}
           </table>
         </div>
 

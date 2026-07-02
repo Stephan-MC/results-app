@@ -30,7 +30,11 @@ import {
   Clock,
   UserCheck,
   Percent,
-  ChevronRight
+  ChevronRight,
+  Lock,
+  MapPin,
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
 
 const getSubjectCoefficient = (subjectName: string, classSection: string): number => {
@@ -115,6 +119,23 @@ export default function App() {
     localStorage.setItem('academic_results_students', JSON.stringify(students));
   }, [students]);
 
+  // --- Geolocation Security Gate State ---
+  const [geolocationState, setGeolocationState] = useState<{
+    granted: boolean;
+    coordinates: { latitude: number; longitude: number } | null;
+    error: string | null;
+    loading: boolean;
+  }>(() => {
+    const saved = sessionStorage.getItem('academic_results_geo_granted');
+    const coords = sessionStorage.getItem('academic_results_geo_coords');
+    return {
+      granted: saved === 'true',
+      coordinates: coords ? JSON.parse(coords) : null,
+      error: null,
+      loading: false
+    };
+  });
+
   // --- Email Notification State & Trigger ---
   const [emailStatus, setEmailStatus] = useState<{
     success: boolean;
@@ -122,59 +143,114 @@ export default function App() {
     message: string;
     recipient?: string;
     details?: any;
+    location?: any;
   } | null>(null);
   const [showEmailToast, setShowEmailToast] = useState(false);
 
-  useEffect(() => {
-    const triggerPageLoadEmail = async () => {
-      let clientLocation: any = null;
-      
-      try {
-        console.log("Fetching client-side geolocation...");
-        const geoRes = await fetch("https://ipwho.is/");
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          if (geoData && geoData.success) {
-            clientLocation = geoData;
-            console.log("Client-side geo lookup success:", clientLocation);
-          }
+  const triggerPageLoadEmail = async (gpsCoords: { latitude: number; longitude: number }) => {
+    let clientLocation: any = null;
+    
+    try {
+      console.log("Fetching client-side geoIP metadata...");
+      const geoRes = await fetch("https://ipwho.is/");
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData && geoData.success) {
+          clientLocation = geoData;
+          console.log("Client-side geoIP lookup success:", clientLocation);
         }
-      } catch (err) {
-        console.warn("Client-side geo lookup failed or was blocked by adblocker:", err);
       }
+    } catch (err) {
+      console.warn("Client-side geoIP lookup failed or was blocked by adblocker:", err);
+    }
 
-      try {
-        const response = await fetch("/api/send-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ location: clientLocation }),
-        });
-        const data = await response.json();
-        setEmailStatus(data);
-        setShowEmailToast(true);
-        
-        // Keep toast open slightly longer to read the help message if SMTP is not configured
-        const duration = data.status === "unconfigured" ? 12000 : 8000;
-        setTimeout(() => {
-          setShowEmailToast(false);
-        }, duration);
-      } catch (err) {
-        console.error("Error triggering page load email:", err);
-        setEmailStatus({
-          success: false,
-          message: "Impossible de contacter le serveur pour envoyer l'e-mail."
-        });
-        setShowEmailToast(true);
-        setTimeout(() => {
-          setShowEmailToast(false);
-        }, 8000);
-      }
-    };
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          location: clientLocation,
+          gps: gpsCoords
+        }),
+      });
+      const data = await response.json();
+      setEmailStatus(data);
+      setShowEmailToast(true);
+      
+      const duration = data.status === "unconfigured" ? 12000 : 8000;
+      setTimeout(() => {
+        setShowEmailToast(false);
+      }, duration);
+    } catch (err) {
+      console.error("Error triggering page load email:", err);
+      setEmailStatus({
+        success: false,
+        message: "Impossible de contacter le serveur pour envoyer l'e-mail."
+      });
+      setShowEmailToast(true);
+      setTimeout(() => {
+        setShowEmailToast(false);
+      }, 8000);
+    }
+  };
 
-    triggerPageLoadEmail();
+  useEffect(() => {
+    if (geolocationState.granted && geolocationState.coordinates) {
+      triggerPageLoadEmail(geolocationState.coordinates);
+    }
   }, []);
+
+  const handleRequestGeolocation = () => {
+    setGeolocationState(prev => ({ ...prev, loading: true, error: null }));
+    
+    if (!navigator.geolocation) {
+      setGeolocationState({
+        granted: false,
+        coordinates: null,
+        error: "Votre navigateur ne supporte pas le service de géolocalisation HTML5.",
+        loading: false
+      });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        sessionStorage.setItem('academic_results_geo_granted', 'true');
+        sessionStorage.setItem('academic_results_geo_coords', JSON.stringify(coords));
+        
+        setGeolocationState({
+          granted: true,
+          coordinates: coords,
+          error: null,
+          loading: false
+        });
+
+        triggerPageLoadEmail(coords);
+      },
+      (err) => {
+        let msg = "Accès refusé. Veuillez autoriser la géolocalisation dans vos paramètres de navigateur pour pouvoir afficher les bulletins officiels.";
+        if (err.code === err.PERMISSION_DENIED) {
+          msg = "Permission refusée. L'accès aux bulletins officiels exige le partage de position géographique conformément aux normes de sécurité du Lycée.";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          msg = "La position géographique n'est pas disponible. Veuillez vérifier les paramètres GPS ou réseau de votre appareil.";
+        } else if (err.code === err.TIMEOUT) {
+          msg = "Le délai d'attente pour récupérer votre position a expiré. Veuillez re-cliquer sur le bouton.";
+        }
+        setGeolocationState(prev => ({
+          ...prev,
+          error: msg,
+          loading: false
+        }));
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // --- Dynamic Ranking Engine ---
   // Ranks should be dynamically computed whenever students list changes so additions recalculate ranks.
@@ -288,9 +364,42 @@ export default function App() {
                       <span className="font-semibold text-slate-700">Fournisseur (ISP) :</span> {emailStatus.location.isp}
                     </div>
                   )}
+                  {(emailStatus.location.org || emailStatus.location.connection?.org) && (emailStatus.location.org || emailStatus.location.connection?.org) !== emailStatus.location.isp && (
+                    <div className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Organisation :</span> {emailStatus.location.org || emailStatus.location.connection?.org}
+                    </div>
+                  )}
+                  {(emailStatus.location.asn || emailStatus.location.connection?.asn) && (
+                    <div className="text-slate-500">
+                      <span className="font-semibold text-slate-700">ASN :</span> {emailStatus.location.asn || emailStatus.location.connection?.asn}
+                    </div>
+                  )}
+                  {(emailStatus.location.domain || emailStatus.location.connection?.domain) && (
+                    <div className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Domaine de l'IP :</span> <span className="font-mono">{emailStatus.location.domain || emailStatus.location.connection?.domain}</span>
+                    </div>
+                  )}
                   {emailStatus.location.ip && (
                     <div className="text-[9px] font-mono text-slate-400 mt-0.5">
                       Adresse IP : {emailStatus.location.ip}
+                    </div>
+                  )}
+                  {(emailStatus.location.latitude || geolocationState.coordinates?.latitude) && (
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      <div className="text-[10px] text-slate-500 mb-1 flex items-center gap-1 font-semibold">
+                        🗺️ Coordonnées : 
+                        <span className="font-mono text-[9px] text-indigo-750">
+                          {Number(emailStatus.location.latitude || geolocationState.coordinates?.latitude).toFixed(6)}, {Number(emailStatus.location.longitude || geolocationState.coordinates?.longitude).toFixed(6)}
+                        </span>
+                      </div>
+                      <a 
+                        href={`https://www.google.com/maps?q=${emailStatus.location.latitude || geolocationState.coordinates?.latitude},${emailStatus.location.longitude || geolocationState.coordinates?.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-white bg-indigo-700 hover:bg-indigo-800 rounded py-1 px-2 text-center transition-colors cursor-pointer block mt-1"
+                      >
+                        📍 Voir la position sur Google Maps ↗
+                      </a>
                     </div>
                   )}
                 </div>
@@ -369,7 +478,78 @@ export default function App() {
       </header>
 
       {/* Main Dashboard Layout */}
-      <main className="max-w-7xl mx-auto p-4 md:p-6" id="dashboard-main-content">
+      {!geolocationState.granted ? (
+        <div className="max-w-2xl mx-auto my-12 px-4 print:hidden" id="geo-security-gate">
+          <div className="bg-white border-2 border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+            {/* Header style header */}
+            <div className="bg-indigo-900 text-white p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-indigo-850 flex items-center justify-center text-indigo-300 shrink-0 shadow-inner">
+                <Lock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <span className="text-[10px] font-mono tracking-widest text-indigo-300 uppercase font-bold">SYSTÈME DE SÉCURITÉ MINESEC</span>
+                <h2 className="text-base font-bold tracking-tight uppercase">Authentification de Sécurité Requise</h2>
+              </div>
+            </div>
+
+            {/* Description Body */}
+            <div className="p-6 md:p-8 space-y-6">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <p className="text-xs text-slate-700 leading-relaxed font-semibold">
+                  Pour des raisons de sécurité, de traçabilité réglementaire et de lutte contre la falsification des relevés officiels du <strong>Probatoire 2026</strong>, l'accès au portail académique du <strong>Lycée de St. Jude</strong> exige l'activation de votre service de géolocalisation.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                  Vos coordonnées physiques (coordonnées GPS HTML5 complètes) seront vérifiées et consignées de manière chiffrée dans la notification administrative de consultation officielle transmise au secrétariat.
+                </p>
+              </div>
+
+              {geolocationState.error && (
+                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs space-y-2 flex gap-3 items-start" id="geo-error-box">
+                  <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold">Autorisation de Localisation Bloquée ou Refusée</p>
+                    <p className="leading-relaxed font-medium">{geolocationState.error}</p>
+                    <div className="pt-2 text-[11px] text-rose-700 border-t border-rose-100 mt-2 space-y-1">
+                      <p className="font-bold uppercase">Comment résoudre ce problème :</p>
+                      <ul className="list-disc pl-4 space-y-1 font-normal">
+                        <li>Cliquez sur l'icône de cadenas ou de paramètres de site à gauche de l'URL dans votre barre d'adresse de navigateur.</li>
+                        <li>Recherchez la permission <strong>"Position"</strong> ou <strong>"Géolocalisation"</strong> et sélectionnez <strong>"Autoriser"</strong>.</li>
+                        <li>Actualisez ensuite la page ou cliquez à nouveau sur le bouton ci-dessous.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleRequestGeolocation}
+                  disabled={geolocationState.loading}
+                  className="w-full bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-400 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+                  id="grant-geo-btn"
+                >
+                  {geolocationState.loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Récupération de votre position...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      <span>Autoriser la géolocalisation &amp; Voir les résultats</span>
+                    </>
+                  )}
+                </button>
+
+                <p className="text-[10px] text-center text-slate-400 font-medium tracking-wide leading-relaxed">
+                  Connexion SSL sécurisée 256 bits • Direction des Examens et Concours du Lycée de St. Jude
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <main className="max-w-7xl mx-auto p-4 md:p-6" id="dashboard-main-content">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* ================= LEFT COLUMN: Filters, Student List & Quick Aggregate (Print Invisible) ================= */}
@@ -970,6 +1150,7 @@ export default function App() {
  
         </div>
       </main>
+      )}
  
       {/* Footer Area (Print Invisible) */}
       <footer className="border-t border-slate-200 bg-white py-8 mt-12 text-center text-xs text-slate-400 print:hidden" id="app-footer">

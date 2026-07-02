@@ -1,6 +1,6 @@
 {
   "name": "Academic Results Dashboard",
   "description": "Portail académique officiel du Lycée de St. Jude pour le suivi, l'analyse des résultats scolaires et les bulletins du Probatoire 2026.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
